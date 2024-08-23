@@ -99,6 +99,7 @@ winit = { version = "0.30.5", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(web_sys_unstable_apis)'] }
 
 elided_lifetimes_in_paths = "warn"
 future_incompatible = "warn"
