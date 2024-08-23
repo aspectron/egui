@@ -167,11 +167,32 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
         .ok()
 }
 
+use web_sys::{Clipboard, Navigator};
+#[wasm_bindgen]
+extern "C" {
+    # [wasm_bindgen (extends = Navigator , js_name = Navigator , typescript_type = "Navigator")]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    type NavigatorExt;
+    # [wasm_bindgen (structural , method , getter , js_class = "Navigator" , js_name = clipboard)]
+    fn clipboard(this: &NavigatorExt) -> Option<Clipboard>;
+}
+
+// pub fn clipboard() -> Option<Clipboard> {
+//     window().map(|window| {
+//         window
+//             .navigator()
+//             .dyn_into::<NavigatorExt>()
+//             .unwrap()
+//             .clipboard()
+//     })
+// }
+
 /// Set the clipboard text.
 #[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
-        if let Some(clipboard) = window.navigator().clipboard() {
+        let navigator = window.navigator().dyn_into::<NavigatorExt>().unwrap();
+        if let Some(clipboard) = navigator.clipboard() {
             let promise = clipboard.write_text(s);
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
