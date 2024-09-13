@@ -26,7 +26,7 @@ use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 #[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
+pub(crate) use profiling_scopes::{profile_function, profile_scope};
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -823,6 +823,8 @@ impl State {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            num_completed_passes: _, // `egui::Context::run` handles this
+            requested_discard: _,    // `egui::Context::run` handles this
         } = platform_output;
 
         self.set_cursor_icon(window, cursor_icon);
@@ -1607,7 +1609,11 @@ pub fn create_winit_window_attributes(
         .with_decorations(decorations.unwrap_or(true))
         .with_resizable(resizable.unwrap_or(true))
         .with_visible(visible.unwrap_or(true))
-        .with_maximized(maximized.unwrap_or(false))
+        .with_maximized(if cfg!(target_os = "ios") {
+            true
+        } else {
+            maximized.unwrap_or(false)
+        })
         .with_window_level(match window_level.unwrap_or_default() {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
@@ -1631,6 +1637,7 @@ pub fn create_winit_window_attributes(
         })
         .with_active(active.unwrap_or(true));
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = inner_size {
         window_attributes = window_attributes.with_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1638,6 +1645,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = min_inner_size {
         window_attributes = window_attributes.with_min_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1645,6 +1653,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = max_inner_size {
         window_attributes = window_attributes.with_max_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1652,11 +1661,21 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(pos) = position {
         window_attributes = window_attributes.with_position(PhysicalPosition::new(
             pixels_per_point * pos.x,
             pixels_per_point * pos.y,
         ));
+    }
+    #[cfg(target_os = "ios")]
+    {
+        // Unused:
+        _ = pixels_per_point;
+        _ = position;
+        _ = inner_size;
+        _ = min_inner_size;
+        _ = max_inner_size;
     }
 
     if let Some(icon) = icon {

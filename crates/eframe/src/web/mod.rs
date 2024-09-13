@@ -43,7 +43,11 @@ pub use backend::*;
 use wasm_bindgen::prelude::*;
 use web_sys::MediaQueryList;
 
-use input::*;
+use input::{
+    button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
+    modifiers_from_wheel_event, pos_from_mouse_event, primary_touch_pos, push_touches,
+    text_from_keyboard_event, translate_key,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -188,7 +192,6 @@ extern "C" {
 // }
 
 /// Set the clipboard text.
-#[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         let navigator = window.navigator().dyn_into::<NavigatorExt>().unwrap();
@@ -208,7 +211,8 @@ fn set_clipboard_text(s: &str) {
             } else {
                 log::warn!("window.navigator.clipboard is null; can't copy text, probably because we're not in a secure context. See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts");
             }
-        }
+        };
+        wasm_bindgen_futures::spawn_local(future);
     }
 }
 
@@ -282,17 +286,4 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
-}
-
-/// Returns `true` if the app is likely running on a mobile device.
-pub(crate) fn is_mobile() -> bool {
-    fn try_is_mobile() -> Option<bool> {
-        const MOBILE_DEVICE: [&str; 6] =
-            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
-
-        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
-        Some(is_mobile)
-    }
-    try_is_mobile().unwrap_or(false)
 }

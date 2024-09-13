@@ -2,7 +2,10 @@
 
 use epaint::ColorImage;
 
-use crate::{emath::*, Key, Theme, ViewportId, ViewportIdMap};
+use crate::{
+    emath::{Pos2, Rect, Vec2},
+    Key, Theme, ViewportId, ViewportIdMap,
+};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -113,10 +116,14 @@ impl RawInput {
     pub fn take(&mut self) -> Self {
         Self {
             viewport_id: self.viewport_id,
-            viewports: self.viewports.clone(),
+            viewports: self
+                .viewports
+                .iter_mut()
+                .map(|(id, info)| (*id, info.take()))
+                .collect(),
             screen_rect: self.screen_rect.take(),
             max_texture_side: self.max_texture_side.take(),
-            time: self.time.take(),
+            time: self.time,
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
@@ -242,6 +249,23 @@ impl ViewportInfo {
         self.events
             .iter()
             .any(|&event| event == ViewportEvent::Close)
+    }
+
+    /// Helper: move [`Self::events`], clone the other fields.
+    pub fn take(&mut self) -> Self {
+        Self {
+            parent: self.parent,
+            title: self.title.clone(),
+            events: std::mem::take(&mut self.events),
+            native_pixels_per_point: self.native_pixels_per_point,
+            monitor_size: self.monitor_size,
+            inner_rect: self.inner_rect,
+            outer_rect: self.outer_rect,
+            minimized: self.minimized,
+            maximized: self.maximized,
+            fullscreen: self.fullscreen,
+            focused: self.focused,
+        }
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
@@ -719,7 +743,7 @@ impl Modifiers {
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
-    /// of the pressed ksey (`self`).
+    /// of the pressed key (`self`).
     ///
     /// This means that if the pattern has not set `shift`, then `self` can have `shift` set or not.
     ///
